@@ -3,6 +3,8 @@
 
 
 const int btnPin = 12;
+//Button connected to ground, 5v and 4k7 resistor. LCD connected to 20, 21 (SCL, SDA), 5v and gnd
+
 
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
 void setup() {
