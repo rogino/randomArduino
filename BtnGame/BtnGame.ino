@@ -78,6 +78,7 @@ void loop() {
     //Once button is pressed, restart
     if (counter % len == 0) {
       //If counter is either 0 or len, it will update text. In these cases, clear the line
+      lcd.setCursor(0,1);
       lcd.print("                ");//clear second line: 16 spaces
       lcd.setCursor(0,1); //Move cursor to second line
     }
