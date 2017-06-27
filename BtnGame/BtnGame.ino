@@ -13,14 +13,6 @@ char str[16]; //Enough characters to fit on one line
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
 
 unsigned long waitForBtn() {
-  if (digitalRead(btnPin) == HIGH) {
-    //Stop people from pressing from the start
-    lcd.clear();
-    lcd.print("Too early");
-    delay(500); //Show text for 500 milliseconds
-    return 0; //Return 0
-  }
-
   while (digitalRead(btnPin) == LOW) {
     delay(1); //read every millisecond
   }
@@ -63,16 +55,33 @@ void loop() {
   lcd.setCursor(0,0);
   lcd.print("One   ");
   lcd.setCursor(0,0);
-  delay(random(50, 3000)); //Between 0.05 and 3 seconds
-  lcd.print("BANG!");
-  startTime = millis(); //start the time. Here instead of in function to increase accuracy
-  unsigned long result = waitForBtn();
-  //Get time
 
-  delay(200); //wait 0.2s. Removing this is really bad for some reason
+  int waitTime = random(50, 3000);
+  unsigned long waitStart = millis();
+  bool cheated = false;
+  while (millis() - waitStart <  waitTime) {
+    if (digitalRead(btnPin) == HIGH) {
+      //Stop people from pressing from the start
+      lcd.clear();
+      lcd.print("Too early"); //On first line.
+      cheated = true;
+      delay(500); //Show text for 500 milliseconds
+      break; //Exit loop
+    }
+    delay(1);
+  }
+  //delay(random(50, 3000)); //Between 0.05 and 3 seconds
+  unsigned long result = 0;
+  if (!cheated) {
+    lcd.print("BANG!");
+    startTime = millis(); //start the time. Here instead of in function to increase accuracy
+    unsigned long result = waitForBtn();
+    //Get time
+  }
+  delay(700); //wait 0.2s. Removing this is really bad for some reason
 
   int counter = 0; //Counter for while(true) loop
-  int len = 700; //Length of time for text to be flashing between two states
+  int len = 900; //Length of time for text to be flashing between two states
   lcd.setCursor(0,1); //Set to go to second line/row
   while (digitalRead(btnPin) == LOW) {
     //Once button is pressed, restart
