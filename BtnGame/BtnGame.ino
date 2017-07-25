@@ -78,7 +78,7 @@ void loop() {
     unsigned long result = waitForBtn();
     //Get time
   }
-  delay(700); //wait 0.2s. Removing this is really bad for some reason
+  delay(200); //wait 0.2s. Removing this is really bad for some reason
 
   int counter = 0; //Counter for while(true) loop
   int len = 900; //Length of time for text to be flashing between two states
