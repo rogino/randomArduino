@@ -1,53 +1,74 @@
 #include <Servo.h>
-const int led[] = {3, 4, 5, 6};
-const int ledPos[] = {60, 80, 100, 120};
-const int ldr = 5;
-int active = -1; //Initialize at 0
-const int arrLen = sizeof(led)/sizeof(int);
-const int servo1Pin = 2;
+
+//Array of LED pins and their position in degrees
+const int led[] = {2,3,4,5,7};
+const int ledPos[] = {170, 130, 90, 50, 10};
+const int arrLen = sizeof(led)/sizeof(int); //Number of LEDs
+
+//Pins for LDR, servo and motor
+const int ldrPin = 0;
+const int servoPin = 13;
 const int motorPin = 10;
-Servo servo1;
+
+//Declare Servo object
+Servo servo;
+
+int active; //The index of the LED the servo is pointing to
+int target = 0; //The index of the LED that the user should point to to pass the level. Initialized to 0
+
+const int originalSpeed = 3000; //The original time the user has before losing
+const int speedIncrement = 100; //How much to decrease this time by after every 'level'
+
+int speed = originalSpeed; //The time the user has for that specific level
+
+const int requiredMatches = 8; //The number of continuous matches a user needs before completing the level
+int matches = 0; //The number of continuous matches the user has. Initialized to zero
+
+const int userVariance = 10; //Amount of 'wiggle-room' the user has
+
+//The range of LDR values the motor should respond to
+int minLdr = 600;
+int maxLdr = 800;
+
+unsigned long time = millis(); //The time at the start of the level. Uses unsigned long as int fails after ~32 seconds
+
+
 void setup() {
   Serial.begin(9600);
-  // put your setup code here, to run once:
   for (int i = 0; i < arrLen; i++) {
+    //Set all LED pins to OUTPUT. Set all to off
     pinMode(led[i], OUTPUT);
     digitalWrite(led[i], LOW);
   }
-  pinMode(servo1Pin, OUTPUT);
-  servo1.attach(servo1Pin);
-  //servo1.write(130);
-  randomSeed(1);
-  pinMode(motorPin, OUTPUT);
 
-//  for (int i = 0; i < 1023; i++) {
-//    Serial.println(map(i,200,1000,60,120));
-//    delay(10);
-//  }
+  pinMode(servoPin, OUTPUT);
+  pinMode(motorPin, OUTPUT);
+  servo.attach(servoPin); //Initialize servo
+  randomSeed(1); //Set random seed to from analog pin 1. This pin should not be used
 }
 
+
 int selectedLed(int position, int variance) {
+  //Position: position of servo
+  //Variance: amount of 'wiggle room' the user has for there to be a match. The range is double the variance
   for (int i = 0; i < arrLen; i++) {
     if (abs(ledPos[i] - position) < variance) {
       return i;
+      //Returns either the index of the LED or -1 if there are no matches
     }
   }
   return -1; //No match, return -1
 }
 
-void motorCountdown(int num) {
-  for (int i = 0; i < num; i++) {
-   digitalWrite(motorPin,HIGH);
-    delay(300);
-    digitalWrite(motorPin, LOW);
-    if (i < num - 1) {
-      delay(700);
-    }
-  }
-}
 
-void flashLed(int time, int number) {
-  analogWrite(motorPin, 100);
+void flashLed(int time, int number, bool spinMotor) {
+  //Time: time between flashes
+  //Number: number of times to turn on and off
+  //spinMotor: if the motor should spin or not
+  if (spinMotor) {
+    digitalWrite(motorPin, HIGH); //Turns the motor on until the end of the function
+  }
+
   for (int i = 0; i < number; i++) {
     for (int j = 0; j < arrLen; j++) {
       digitalWrite(led[j], HIGH);
@@ -58,73 +79,60 @@ void flashLed(int time, int number) {
     }
     delay(time);
   }
-  analogWrite(motorPin, 0);
+
+  if (spinMotor) {
+    digitalWrite(motorPin, LOW);
+  }
 }
 
 
-int matches = 0;
-int requiredMatches = 8;
-int target = 0;
-unsigned long time = millis();
-int originalSpeed = 10000;
-int speed = originalSpeed;
-int speedIncrement = 50;
-
-int minLdr = 480;
-int maxLdr = 580;
-
-
 void loop() {
-  //motorCountdown(3);
-  digitalWrite(led[target], LOW);
-  target = random(0, arrLen);
-  digitalWrite(led[target], HIGH);
-  time = millis();
-  Serial.println(time);
-  Serial.println("Started");
-  Serial.println(millis()-time);
-  while (millis() - time < speed) {
-    Serial.println(millis()-time);
-    delay(50);
-    int ldrVal = constrain(analogRead(ldr), minLdr, maxLdr);
-    int pos = map(ldrVal, maxLdr, minLdr, 50, 130);
+  digitalWrite(led[target], LOW); //Turn the pervious target LED off
 
-    servo1.write(pos);
-    active = selectedLed(pos, 10);
-    /*Serial.println(active);
-    Serial.println(target);*/
+  target = random(0, arrLen); //Set target LED to random integer and turn that LED on
+  digitalWrite(led[target], HIGH); 
+  
+  time = millis(); //Set the time at the start of the loop
+  while (millis() - time < speed) {
+    //Continue through the loop until the time since when the function started is greater than the time the user has to complete the level
+    delay(50); //Delay of 50 milliseconds each time it goes through the loop. Makes setting `requiredMatches` easier. 
+    int ldrVal = constrain(analogRead(ldrPin), minLdr, maxLdr); //Get the value of the LDR, and constrain it.
+    int pos = map(ldrVal, maxLdr, minLdr, 0, 180); //Constrained, so pos will always be between 0 and 180
+
+    servo.write(pos); //Servo postiion mapped to the LED value
+    active = selectedLed(pos, userVariance); //Find which LED the servo is pointing to
+    // Serial.println(pos);
+    // Serial.println(active);
+    // Serial.println(target);
     if (active == target) {
-      matches++;
-      /*
-      Serial.println("Match");
-      Serial.println(matches);
-      Serial.println(requiredMatches);*/
+      matches++; //Increase the amount of matches if servo pointing at the right LED
     }
     else {
-      matches = 0;
-      /*
-      Serial.println("not match");
-      Serial.println(matches);*/
+      matches = 0; //If not pointing, set matches to 0- `matches` measures the number of continuous matches to ensure the servo is relatively static
     }
     
     if (matches >= requiredMatches) {
-      //If more matches than rquired, exit loop
+      //If more matches than required, exit loop
       break;
     }
   }
  
   if (matches < requiredMatches) {
-     //If exited because faliure
-    //Set back to original speed
-    speed = originalSpeed;
-    flashLed(100, 5);
-    delay(1000);
+     //If exited because the user ran out of time, and not because the user got the required number of matches
+    speed = originalSpeed; //Restart- set speed to the original speed
+    flashLed(100, 5, false); //Flash the LEDs 5 times
+    delay(1000); //Wait 1 second so the user can prepare
   }
   
   else {
-    speed -= speedIncrement;
-    //decrease speed: increase difficulty
+    speed -= speedIncrement; //Decrease speed to increase difficulty
+
+    if (speed > speedIncrement) {
+      //If, in the next level, the speed would be less than 0
+      flashLED(80, 10, true); //Flash the LED, spin the motor
+      speed = originalSpeed; //Restart the game
+      delay(2000);
+    }
   }
-  Serial.println("exited");
 }
 
