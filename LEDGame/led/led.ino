@@ -1,7 +1,7 @@
 #include <Servo.h>
 
 //Array of LED pins and their position in degrees
-const int led[] = {2,3,4,5,7};
+const int led[] = {2,3,4,6,7};
 const int ledPos[] = {170, 130, 90, 50, 10};
 const int arrLen = sizeof(led)/sizeof(int); //Number of LEDs
 
@@ -10,24 +10,23 @@ const int ldrPin = 0;
 const int servoPin = 13;
 const int motorPin = 10;
 
-//Declare Servo object
-Servo servo;
+Servo servo; //Declare Servo object
 
 int active; //The index of the LED the servo is pointing to
 int target = 0; //The index of the LED that the user should point to to pass the level. Initialized to 0
 
-const int originalSpeed = 3000; //The original time the user has before losing
+const int originalSpeed = 4000; //The original time the user has before losing
 const int speedIncrement = 100; //How much to decrease this time by after every 'level'
 
 int speed = originalSpeed; //The time the user has for that specific level
 
-const int requiredMatches = 8; //The number of continuous matches a user needs before completing the level
+const int requiredMatches = 5; //The number of continuous matches a user needs before completing the level
 int matches = 0; //The number of continuous matches the user has. Initialized to zero
 
 const int userVariance = 10; //Amount of 'wiggle-room' the user has
 
 //The range of LDR values the motor should respond to
-int minLdr = 600;
+int minLdr = 550;
 int maxLdr = 800;
 
 unsigned long time = millis(); //The time at the start of the level. Uses unsigned long as int fails after ~32 seconds
@@ -101,9 +100,7 @@ void loop() {
 
     servo.write(pos); //Servo postiion mapped to the LED value
     active = selectedLed(pos, userVariance); //Find which LED the servo is pointing to
-    // Serial.println(pos);
-    // Serial.println(active);
-    // Serial.println(target);
+
     if (active == target) {
       matches++; //Increase the amount of matches if servo pointing at the right LED
     }
@@ -120,16 +117,16 @@ void loop() {
   if (matches < requiredMatches) {
      //If exited because the user ran out of time, and not because the user got the required number of matches
     speed = originalSpeed; //Restart- set speed to the original speed
-    flashLed(100, 5, false); //Flash the LEDs 5 times
+    flashLed(100, 5, true); //Flash the LEDs 5 times
     delay(1000); //Wait 1 second so the user can prepare
   }
   
   else {
     speed -= speedIncrement; //Decrease speed to increase difficulty
 
-    if (speed > speedIncrement) {
+    if (speed < speedIncrement) {
       //If, in the next level, the speed would be less than 0
-      flashLED(80, 10, true); //Flash the LED, spin the motor
+      flashLed(80, 10, true); //Flash the LED, spin the motor
       speed = originalSpeed; //Restart the game
       delay(2000);
     }
